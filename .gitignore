@@ -181,3 +181,15 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/gradle,intellij,kotlin,java
+/mail-server/.idea/gradle.xml
+/gradle/wrapper/gradle-wrapper.jar
+/gradle/wrapper/gradle-wrapper.properties
+/gradlew
+/gradlew.bat
+/.idea/jarRepositories.xml
+/.idea/kotlinc.xml
+/.idea/misc.xml
+/mail-server/.idea/misc.xml
+/.idea/vcs.xml
+/mail-server/.idea/vcs.xml
+/mail-server/.idea/workspace.xml

@@ -31,14 +31,11 @@ class MailService(
     private val mailRepository: MailRepository,
     private val objectMapper: ObjectMapper,
     private val mailSpamService: MailSpamService,
+        private val handlebars: Handlebars
 ) {
 
     private val log = KotlinLogging.logger {}
-    private val handlebars = Handlebars().also {
-        it.registerHelperMissing(Helper<Any> { context, options ->
-            throw IllegalArgumentException("누락된 파라메터 발생: [${options.helperName}]")
-        })
-    }
+
     private val scheduledExecutorService = Executors.newScheduledThreadPool(10)
 
     data class FileAttachmentDto(
