@@ -1,7 +1,6 @@
 package com.gitub.oopgurus.refactoringproblems.mailserver
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import jakarta.mail.internet.InternetAddress
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.stereotype.Component
 
@@ -24,14 +23,16 @@ class MailService(
 
         val html = mailTemplate.assembleHtmlMailTemplate(sendMailDto.htmlTemplateName, sendMailDto.htmlTemplateParameters)
         val files = convertToFile(sendMailDto.fileAttachments)
+        val from = EmailAddress(sendMailDto.fromAddress, sendMailDto.fromName)
+        val to = EmailAddress(sendMailDto.toAddress)
+        val subject = EmailSubject(sendMailDto.title)
+        val body = EmailBody(html)
 
-        val from = InternetAddress(sendMailDto.fromAddress, sendMailDto.fromName, "UTF-8")
-        val to = InternetAddress(sendMailDto.toAddress)
-        val mimeMessage = MimeMessageBuilder(javaMailSender, from, to, sendMailDto.title, html)
-                .files(files)
-                .build()
+        val mimeMessageBuilder = MimeMessageBuilder(javaMailSender, from, to, subject, body)
+        if(files.isNotEmpty()) { mimeMessageBuilder.files(files) }
+        val mimeMessage = mimeMessageBuilder.build()
 
-        val  mail = Mail(javaMailSender, mailRepository, objectMapper, mailSpamService)
+        val mail = Mail(javaMailSender, mailRepository, objectMapper, mailSpamService)
         sendMailDto.sendAfterSeconds?.let { mail.afterSeconds(it) }
         mail.send(mimeMessage, sendMailDto)
     }
