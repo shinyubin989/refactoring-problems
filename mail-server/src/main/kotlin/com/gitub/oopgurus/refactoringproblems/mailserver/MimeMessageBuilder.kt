@@ -20,11 +20,11 @@ class MimeMessageBuilder(
     private val mimeMessageHelper = MimeMessageHelper(mimeMessage, true, "UTF-8")
 
     init {
-        Assert.notNull(from.address, "fromAddress must not be null")
-        Assert.notNull(from.personal, "fromName must not be null")
-        Assert.notNull(to.address, "toAddress must not be null")
-        Assert.notNull(subject, "subject must not be null")
-        Assert.notNull(content, "content must not be null")
+        if(from.address.isBlank()) throw RuntimeException("fromAddress must not be blank")
+        if(from.personal.isBlank()) throw RuntimeException("fromName must not be blank")
+        if(to.address.isBlank()) throw RuntimeException("toAddress must not be blank")
+        if(subject.isBlank()) throw RuntimeException("subject must not be blank")
+        if(content.isBlank()) throw RuntimeException("content must not be blank")
 
         mimeMessageHelper.setFrom(from)
         mimeMessageHelper.setTo(to)
