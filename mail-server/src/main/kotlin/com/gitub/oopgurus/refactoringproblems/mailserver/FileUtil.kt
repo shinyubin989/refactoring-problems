@@ -20,29 +20,18 @@ fun convertToFile(files: List<FileAttachment>): List<File> {
                     val tempFile = File.createTempFile(id, "")
                     StreamUtils.copy(clientHttpResponse.body, FileOutputStream(tempFile))
 
-                    FileAttachmentDto(
-                            resultFile = tempFile,
-                            clientHttpResponse = clientHttpResponse
-                    )
-                })
-
-        if (result == null) {
-            throw RuntimeException("파일 초기화 실패")
-        }
-        if (result.resultFile.length() != result.clientHttpResponse.headers.contentLength) {
-            throw RuntimeException("파일 크기 불일치")
-        }
-        if (DataSize.ofKilobytes(2048) <= DataSize.ofBytes(result.clientHttpResponse.headers.contentLength)) {
-            throw RuntimeException("파일 크기 초과")
-        }
+                    if (tempFile.length() != clientHttpResponse.headers.contentLength) {
+                        throw RuntimeException("파일 크기 불일치")
+                    }
+                    if (DataSize.ofKilobytes(2048) <= DataSize.ofBytes(clientHttpResponse.headers.contentLength)) {
+                        throw RuntimeException("파일 크기 초과")
+                    }
+                    tempFile
+                }
+        )
+        result ?: throw RuntimeException("파일 초기화 실패")
         result
     }
-    return fileResults.map { it.resultFile }
+    return fileResults
 
 }
-
-class FileAttachmentDto(
-        val resultFile: File,
-        val clientHttpResponse: ClientHttpResponse,
-)
-
