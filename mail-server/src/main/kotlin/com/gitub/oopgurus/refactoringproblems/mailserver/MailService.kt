@@ -16,7 +16,6 @@ import java.io.FileOutputStream
 @Component
 class MailService(
         private val javaMailSender: JavaMailSender,
-        private val restTemplate: RestTemplate,
         private val mailRepository: MailRepository,
         private val objectMapper: ObjectMapper,
         private val mailSpamService: MailSpamService,
@@ -42,41 +41,12 @@ class MailService(
         }
 
         val html = mailTemplate.assembleHtmlMailTemplate(sendMailDto.htmlTemplateName, sendMailDto.htmlTemplateParameters)
-
-        val fileResults = sendMailDto.fileAttachments.mapIndexed { index, attachment ->
-            val result = restTemplate.execute(
-                    attachment.url,
-                    HttpMethod.GET,
-                    null,
-                    { clientHttpResponse: ClientHttpResponse ->
-                        val id = "file-${index}-${java.util.UUID.randomUUID()}"
-                        val tempFile = File.createTempFile(id, "")
-                        StreamUtils.copy(clientHttpResponse.body, FileOutputStream(tempFile))
-
-                        FileAttachmentDto(
-                                resultFile = tempFile,
-                                name = attachment.name,
-                                clientHttpResponse = clientHttpResponse
-                        )
-                    })
-
-            if (result == null) {
-                throw RuntimeException("파일 초기화 실패")
-            }
-            if (result.resultFile.length() != result.clientHttpResponse.headers.contentLength) {
-                throw RuntimeException("파일 크기 불일치")
-            }
-            if (DataSize.ofKilobytes(2048) <= DataSize.ofBytes(result.clientHttpResponse.headers.contentLength)) {
-                throw RuntimeException("파일 크기 초과")
-            }
-            result
-        }
-
+        val files = convertToFile(sendMailDto.fileAttachments)
 
         val from = InternetAddress(sendMailDto.fromAddress, sendMailDto.fromName, "UTF-8")
         val to = InternetAddress(sendMailDto.toAddress)
         val mimeMessage = MimeMessageBuilder(javaMailSender, from, to, sendMailDto.title, html)
-                .files(fileResults.map { it.resultFile })
+                .files(files)
                 .build()
 
         val  mail = Mail(javaMailSender, mailRepository, objectMapper)
