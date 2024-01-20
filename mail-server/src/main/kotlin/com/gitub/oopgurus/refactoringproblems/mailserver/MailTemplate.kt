@@ -25,6 +25,10 @@ class MailTemplate(
     }
 
     fun assembleHtmlMailTemplate(templateName: String, parameters: Map<String, Any>): String {
+        if (templateName.isBlank()) {
+            throw RuntimeException("템플릿 이름이 비어있습니다")
+        }
+
         val htmlTemplate = mailTemplateRepository.findByName(templateName)
                 ?: throw RuntimeException("템플릿이 존재하지 않습니다: [${templateName}]")
         val template: Template = handlebars.compileInline(htmlTemplate.htmlBody)
