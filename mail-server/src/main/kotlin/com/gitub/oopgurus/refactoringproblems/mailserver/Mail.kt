@@ -9,7 +9,8 @@ import java.util.concurrent.TimeUnit
 class Mail(
         private val javaMailSender: JavaMailSender,
         private val mailRepository: MailRepository,
-        private val objectMapper: ObjectMapper
+        private val objectMapper: ObjectMapper,
+        private val mailSpamService: MailSpamService
 ) {
 
     private val scheduledExecutorService = Executors.newScheduledThreadPool(10)
@@ -22,6 +23,8 @@ class Mail(
     }
 
     fun send(mimeMessage: MimeMessage, sendMailDto: SendMailDto) {
+
+        validateToAddress(sendMailDto.toAddress)
 
         if (afterSeconds != null) {
             val tempSeconds = afterSeconds!!
@@ -44,5 +47,18 @@ class Mail(
             mailStatus = MailFailureStatus(mailRepository, objectMapper)
         }
         mailStatus.save(sendMailDto)
+    }
+
+    private fun validateToAddress(toAddress: String) {
+        mailSpamService.needBlockByDomainName(toAddress).let {
+            if (it) {
+                throw RuntimeException("도메인 차단")
+            }
+        }
+        mailSpamService.needBlockByRecentSuccess(toAddress).let {
+            if (it) {
+                throw RuntimeException("최근 메일 발송 실패로 인한 차단")
+            }
+        }
     }
 }

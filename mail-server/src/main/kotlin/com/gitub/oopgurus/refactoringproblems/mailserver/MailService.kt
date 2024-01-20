@@ -2,16 +2,8 @@ package com.gitub.oopgurus.refactoringproblems.mailserver
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.mail.internet.InternetAddress
-import org.springframework.http.HttpMethod
-import org.springframework.http.client.ClientHttpResponse
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.stereotype.Component
-import org.springframework.util.StreamUtils
-import org.springframework.util.unit.DataSize
-import org.springframework.web.client.RestTemplate
-import java.io.File
-import java.io.FileOutputStream
-
 
 @Component
 class MailService(
@@ -29,16 +21,6 @@ class MailService(
     }
 
     private fun sendSingle(sendMailDto: SendMailDto) {
-        mailSpamService.needBlockByDomainName(sendMailDto.toAddress).let {
-            if (it) {
-                throw RuntimeException("도메인 차단")
-            }
-        }
-        mailSpamService.needBlockByRecentSuccess(sendMailDto.toAddress).let {
-            if (it) {
-                throw RuntimeException("최근 메일 발송 실패로 인한 차단")
-            }
-        }
 
         val html = mailTemplate.assembleHtmlMailTemplate(sendMailDto.htmlTemplateName, sendMailDto.htmlTemplateParameters)
         val files = convertToFile(sendMailDto.fileAttachments)
@@ -49,7 +31,7 @@ class MailService(
                 .files(files)
                 .build()
 
-        val  mail = Mail(javaMailSender, mailRepository, objectMapper)
+        val  mail = Mail(javaMailSender, mailRepository, objectMapper, mailSpamService)
         sendMailDto.sendAfterSeconds?.let { mail.afterSeconds(it) }
         mail.send(mimeMessage, sendMailDto)
     }
