@@ -2,10 +2,7 @@ package com.gitub.oopgurus.refactoringproblems.mailserver
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.mail.internet.InternetAddress
-import jakarta.mail.internet.MimeMessage
-import jakarta.mail.internet.MimeUtility
 import mu.KotlinLogging
-import org.springframework.core.io.FileSystemResource
 import org.springframework.http.HttpMethod
 import org.springframework.http.client.ClientHttpResponse
 import org.springframework.mail.javamail.JavaMailSender
@@ -30,11 +27,6 @@ class MailService(
         private val mailTemplate: MailTemplate
 ) {
 
-    private val log = KotlinLogging.logger {}
-
-    private val scheduledExecutorService = Executors.newScheduledThreadPool(10)
-
-
     fun send(sendMailDtos: List<SendMailDto>) {
         sendMailDtos.forEach {
             sendSingle(it)
@@ -52,141 +44,47 @@ class MailService(
                 throw RuntimeException("최근 메일 발송 실패로 인한 차단")
             }
         }
-        Regex(".+@.*\\..+").matches(sendMailDto.toAddress).let {
-            if (it.not()) {
-                throw RuntimeException("이메일 형식 오류")
-            }
-        }
-        Regex(".+@.*\\..+").matches(sendMailDto.fromAddress).let {
-            if (it.not()) {
-                throw RuntimeException("이메일 형식 오류")
-            }
-        }
-        if (sendMailDto.title.isBlank()) {
-            throw RuntimeException("제목이 비어있습니다")
-        }
-        if (sendMailDto.htmlTemplateName.isBlank()) {
-            throw RuntimeException("템플릿 이름이 비어있습니다")
-        }
-        if (sendMailDto.fromName.isBlank()) {
-            throw RuntimeException("발신자 이름이 비어있습니다")
-        }
 
         val html = mailTemplate.assembleHtmlMailTemplate(sendMailDto.htmlTemplateName, sendMailDto.htmlTemplateParameters)
-        val mimeMessage: MimeMessage = javaMailSender.createMimeMessage()
 
-        try {
-            val mimeMessageHelper = MimeMessageHelper(mimeMessage, true, "UTF-8") // use multipart (true)
-            mimeMessageHelper.setText(html, true)
-            mimeMessageHelper.setFrom(InternetAddress(sendMailDto.fromAddress, sendMailDto.fromName, "UTF-8"))
-            mimeMessageHelper.setTo(sendMailDto.toAddress)
+        val fileResults = sendMailDto.fileAttachments.mapIndexed { index, attachment ->
+            val result = restTemplate.execute(
+                    attachment.url,
+                    HttpMethod.GET,
+                    null,
+                    { clientHttpResponse: ClientHttpResponse ->
+                        val id = "file-${index}-${java.util.UUID.randomUUID()}"
+                        val tempFile = File.createTempFile(id, "")
+                        StreamUtils.copy(clientHttpResponse.body, FileOutputStream(tempFile))
 
-            val fileResults = sendMailDto.fileAttachments.mapIndexed { index, attachment ->
-                val result = restTemplate.execute(
-                        attachment.url,
-                        HttpMethod.GET,
-                        null,
-                        { clientHttpResponse: ClientHttpResponse ->
-                            val id = "file-${index}-${java.util.UUID.randomUUID()}"
-                            val tempFile = File.createTempFile(id, "")
-                            StreamUtils.copy(clientHttpResponse.body, FileOutputStream(tempFile))
-
-                            FileAttachmentDto(
-                                    resultFile = tempFile,
-                                    name = attachment.name,
-                                    clientHttpResponse = clientHttpResponse
-                            )
-                        })
-
-                if (result == null) {
-                    throw RuntimeException("파일 초기화 실패")
-                }
-                if (result.resultFile.length() != result.clientHttpResponse.headers.contentLength) {
-                    throw RuntimeException("파일 크기 불일치")
-                }
-                if (DataSize.ofKilobytes(2048) <= DataSize.ofBytes(result.clientHttpResponse.headers.contentLength)) {
-                    throw RuntimeException("파일 크기 초과")
-                }
-                result
-            }
-            fileResults.forEach {
-                val fileSystemResource: FileSystemResource = FileSystemResource(File(it.resultFile.absolutePath))
-                mimeMessageHelper.addAttachment(
-                        MimeUtility.encodeText(
-                                it.name,
-                                "UTF-8",
-                                "B"
-                        ), fileSystemResource
-                )
-            }
-
-            var postfixTitle = ""
-            if (fileResults.isNotEmpty()) {
-                val totalSize = fileResults
-                        .map { it.clientHttpResponse.headers.contentLength }
-                        .reduceOrNull { acc, size -> acc + size } ?: 0
-                postfixTitle = " (첨부파일 [${fileResults.size}]개, 전체크기 [$totalSize bytes])"
-            }
-            mimeMessageHelper.setSubject(
-                    MimeUtility.encodeText(
-                            sendMailDto.title + postfixTitle,
-                            "UTF-8",
-                            "B"
-                    )
-            ) // Base64 encoding
-
-
-            if (sendMailDto.sendAfterSeconds != null) {
-                scheduledExecutorService.schedule(
-                        {
-                            javaMailSender.send(mimeMessage)
-                            mailRepository.save(
-                                    MailEntity(
-                                            fromAddress = sendMailDto.fromAddress,
-                                            fromName = sendMailDto.fromName,
-                                            toAddress = sendMailDto.toAddress,
-                                            title = sendMailDto.title,
-                                            htmlTemplateName = sendMailDto.htmlTemplateName,
-                                            htmlTemplateParameters = objectMapper.writeValueAsString(sendMailDto.htmlTemplateParameters),
-                                            isSuccess = true,
-                                    )
-                            )
-                            log.info { "MailServiceImpl.sendMail() :: SUCCESS" }
-                        },
-                        sendMailDto.sendAfterSeconds,
-                        TimeUnit.SECONDS
-                )
-
-            } else {
-                javaMailSender.send(mimeMessage)
-                mailRepository.save(
-                        MailEntity(
-                                fromAddress = sendMailDto.fromAddress,
-                                fromName = sendMailDto.fromName,
-                                toAddress = sendMailDto.toAddress,
-                                title = sendMailDto.title,
-                                htmlTemplateName = sendMailDto.htmlTemplateName,
-                                htmlTemplateParameters = objectMapper.writeValueAsString(sendMailDto.htmlTemplateParameters),
-                                isSuccess = true,
+                        FileAttachmentDto(
+                                resultFile = tempFile,
+                                name = attachment.name,
+                                clientHttpResponse = clientHttpResponse
                         )
-                )
-                log.info { "MailServiceImpl.sendMail() :: SUCCESS" }
+                    })
+
+            if (result == null) {
+                throw RuntimeException("파일 초기화 실패")
             }
-        } catch (e: Exception) {
-            mailRepository.save(
-                    MailEntity(
-                            fromAddress = sendMailDto.fromAddress,
-                            fromName = sendMailDto.fromName,
-                            toAddress = sendMailDto.toAddress,
-                            title = sendMailDto.title,
-                            htmlTemplateName = sendMailDto.htmlTemplateName,
-                            htmlTemplateParameters = objectMapper.writeValueAsString(sendMailDto.htmlTemplateParameters),
-                            isSuccess = false,
-                    )
-            )
-            log.error(e) { "MailServiceImpl.sendMail() :: FAILED" }
+            if (result.resultFile.length() != result.clientHttpResponse.headers.contentLength) {
+                throw RuntimeException("파일 크기 불일치")
+            }
+            if (DataSize.ofKilobytes(2048) <= DataSize.ofBytes(result.clientHttpResponse.headers.contentLength)) {
+                throw RuntimeException("파일 크기 초과")
+            }
+            result
         }
+
+
+        val from = InternetAddress(sendMailDto.fromAddress, sendMailDto.fromName, "UTF-8")
+        val to = InternetAddress(sendMailDto.toAddress)
+        val mimeMessage = MimeMessageBuilder(javaMailSender, from, to, sendMailDto.title, html)
+                .files(fileResults.map { it.resultFile })
+                .build()
+
+        val mail = Mail(javaMailSender, mailRepository, objectMapper)
+                .send(mimeMessage, sendMailDto)
+
     }
-
-
 }
