@@ -20,6 +20,9 @@ class MimeMessageBuilder(
     private val mimeMessageHelper = MimeMessageHelper(mimeMessage, true, "UTF-8")
 
     init {
+        Assert.notNull(from.address, "fromAddress must not be null")
+        Assert.notNull(from.personal, "fromName must not be null")
+        Assert.notNull(to.address, "toAddress must not be null")
         Assert.notNull(subject, "subject must not be null")
         Assert.notNull(content, "content must not be null")
 
