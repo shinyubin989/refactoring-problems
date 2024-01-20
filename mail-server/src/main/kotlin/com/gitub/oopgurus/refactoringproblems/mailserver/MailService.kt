@@ -2,19 +2,15 @@ package com.gitub.oopgurus.refactoringproblems.mailserver
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.mail.internet.InternetAddress
-import mu.KotlinLogging
 import org.springframework.http.HttpMethod
 import org.springframework.http.client.ClientHttpResponse
 import org.springframework.mail.javamail.JavaMailSender
-import org.springframework.mail.javamail.MimeMessageHelper
 import org.springframework.stereotype.Component
 import org.springframework.util.StreamUtils
 import org.springframework.util.unit.DataSize
 import org.springframework.web.client.RestTemplate
 import java.io.File
 import java.io.FileOutputStream
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 
 @Component
@@ -83,8 +79,8 @@ class MailService(
                 .files(fileResults.map { it.resultFile })
                 .build()
 
-        val mail = Mail(javaMailSender, mailRepository, objectMapper)
-                .send(mimeMessage, sendMailDto)
-
+        val  mail = Mail(javaMailSender, mailRepository, objectMapper)
+        sendMailDto.sendAfterSeconds?.let { mail.afterSeconds(it) }
+        mail.send(mimeMessage, sendMailDto)
     }
 }

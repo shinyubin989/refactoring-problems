@@ -2,7 +2,6 @@ package com.gitub.oopgurus.refactoringproblems.mailserver
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.mail.internet.MimeMessage
-import mu.KotlinLogging
 import org.springframework.mail.javamail.JavaMailSender
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -13,7 +12,6 @@ class Mail(
         private val objectMapper: ObjectMapper
 ) {
 
-    private val log = KotlinLogging.logger {}
     private val scheduledExecutorService = Executors.newScheduledThreadPool(10)
 
     private var afterSeconds: Long? = null
@@ -24,56 +22,27 @@ class Mail(
     }
 
     fun send(mimeMessage: MimeMessage, sendMailDto: SendMailDto) {
-        try {
-            if (afterSeconds != null) {
-                scheduledExecutorService.schedule(
-                        {
-                            javaMailSender.send(mimeMessage)
-                            mailRepository.save(
-                                    MailEntity(
-                                            fromAddress = mimeMessage.from.toString(),
-                                            fromName = sendMailDto.fromName,
-                                            toAddress = sendMailDto.toAddress,
-                                            title = sendMailDto.title,
-                                            htmlTemplateName = sendMailDto.htmlTemplateName,
-                                            htmlTemplateParameters = objectMapper.writeValueAsString(sendMailDto.htmlTemplateParameters),
-                                            isSuccess = true,
-                                    )
-                            )
-                            log.info { "MailServiceImpl.sendMail() :: SUCCESS" }
-                        },
-                        afterSeconds!!,
-                        TimeUnit.SECONDS
-                )
 
-            } else {
-                javaMailSender.send(mimeMessage)
-                mailRepository.save(
-                        MailEntity(
-                                fromAddress = sendMailDto.fromAddress,
-                                fromName = sendMailDto.fromName,
-                                toAddress = sendMailDto.toAddress,
-                                title = sendMailDto.title,
-                                htmlTemplateName = sendMailDto.htmlTemplateName,
-                                htmlTemplateParameters = objectMapper.writeValueAsString(sendMailDto.htmlTemplateParameters),
-                                isSuccess = true,
-                        )
-                )
-                log.info { "MailServiceImpl.sendMail() :: SUCCESS" }
-            }
-        } catch (e: Exception) {
-            mailRepository.save(
-                    MailEntity(
-                            fromAddress = sendMailDto.fromAddress,
-                            fromName = sendMailDto.fromName,
-                            toAddress = sendMailDto.toAddress,
-                            title = sendMailDto.title,
-                            htmlTemplateName = sendMailDto.htmlTemplateName,
-                            htmlTemplateParameters = objectMapper.writeValueAsString(sendMailDto.htmlTemplateParameters),
-                            isSuccess = false,
-                    )
+        if (afterSeconds != null) {
+            val tempSeconds = afterSeconds!!
+            scheduledExecutorService.schedule(
+                    { sendMailAndSave(mimeMessage, sendMailDto) },
+                    tempSeconds,
+                    TimeUnit.SECONDS
             )
-            log.error(e) { "MailServiceImpl.sendMail() :: FAILED" }
+        } else {
+            sendMailAndSave(mimeMessage, sendMailDto)
         }
+    }
+
+    private fun sendMailAndSave(mimeMessage: MimeMessage, sendMailDto: SendMailDto) {
+        lateinit var mailStatus: MailStatus
+        try {
+            javaMailSender.send(mimeMessage)
+            mailStatus = MailSuccessStatus(mailRepository, objectMapper)
+        } catch (e: Exception) {
+            mailStatus = MailFailureStatus(mailRepository, objectMapper)
+        }
+        mailStatus.save(sendMailDto)
     }
 }
