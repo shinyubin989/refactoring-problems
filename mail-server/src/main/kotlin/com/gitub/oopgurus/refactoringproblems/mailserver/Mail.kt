@@ -38,6 +38,7 @@ class Mail(
         }
     }
 
+    // TODO sendMailDto 제거
     private fun sendMailAndSave(mimeMessage: MimeMessage, sendMailDto: SendMailDto) {
         lateinit var mailStatus: MailStatus
         try {
