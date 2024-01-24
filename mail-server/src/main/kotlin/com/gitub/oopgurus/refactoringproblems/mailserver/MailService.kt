@@ -25,6 +25,7 @@ class MailService(
         val files = convertToFile(sendMailDto.fileAttachments)
         val from = EmailAddress(sendMailDto.fromAddress, sendMailDto.fromName)
         val to = EmailAddress(sendMailDto.toAddress)
+        validateToAddress(to.address)
         val subject = EmailSubject(sendMailDto.title)
         val body = EmailBody(html)
 
@@ -34,9 +35,10 @@ class MailService(
         }
         val mimeMessage = mimeMessageBuilder.build()
 
-        val mail = Mail(javaMailSender, save(sendMailDto))
-        sendMailDto.sendAfterSeconds?.let { mail.afterSeconds(it) }
-        mail.send(mimeMessage)
+        when (sendMailDto.sendAfterSeconds) {
+            null -> InstantMail(javaMailSender, save(sendMailDto)).send(mimeMessage)
+            else -> DelayMail(javaMailSender, sendMailDto.sendAfterSeconds, save(sendMailDto)).send(mimeMessage)
+        }
     }
 
     fun save(sendMailDto: SendMailDto) = { status: MailSendStatus ->
@@ -53,5 +55,17 @@ class MailService(
         )
     }
 
+    private fun validateToAddress(toAddress: String) {
+        mailSpamService.needBlockByDomainName(toAddress).let {
+            if (it) {
+                throw RuntimeException("도메인 차단")
+            }
+        }
+        mailSpamService.needBlockByRecentSuccess(toAddress).let {
+            if (it) {
+                throw RuntimeException("최근 메일 발송 실패로 인한 차단")
+            }
+        }
+    }
 
 }
