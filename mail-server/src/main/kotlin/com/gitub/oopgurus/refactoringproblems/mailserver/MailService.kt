@@ -29,11 +29,29 @@ class MailService(
         val body = EmailBody(html)
 
         val mimeMessageBuilder = MimeMessageBuilder(javaMailSender, from, to, subject, body)
-        if(files.isNotEmpty()) { mimeMessageBuilder.files(files) }
+        if (files.isNotEmpty()) {
+            mimeMessageBuilder.files(files)
+        }
         val mimeMessage = mimeMessageBuilder.build()
 
-        val mail = Mail(javaMailSender, mailRepository, objectMapper, mailSpamService)
+        val mail = Mail(javaMailSender, save(sendMailDto))
         sendMailDto.sendAfterSeconds?.let { mail.afterSeconds(it) }
-        mail.send(mimeMessage, sendMailDto)
+        mail.send(mimeMessage)
     }
+
+    fun save(sendMailDto: SendMailDto) = { status: MailSendStatus ->
+        val mail = mailRepository.save(
+                MailEntity(
+                        fromAddress = sendMailDto.fromAddress,
+                        fromName = sendMailDto.fromName,
+                        toAddress = sendMailDto.toAddress,
+                        title = sendMailDto.title,
+                        htmlTemplateName = sendMailDto.htmlTemplateName,
+                        htmlTemplateParameters = objectMapper.writeValueAsString(sendMailDto.htmlTemplateParameters),
+                        isSuccess = status.isSuccess,
+                )
+        )
+    }
+
+
 }
