@@ -27,7 +27,7 @@ class MailController(
             produces = ["application/json"]
     )
     fun createMailTemplate(@RequestBody createMailTemplateDtos: List<CreateMailTemplateDto>): ResponseEntity<Any> {
-        mailTemplate.createMailTemplate(createMailTemplateDtos)
+        mailTemplate.createMailTemplate(createMailTemplateDtos).getOrThrow()
         return ResponseEntity.ok().build()
     }
 }

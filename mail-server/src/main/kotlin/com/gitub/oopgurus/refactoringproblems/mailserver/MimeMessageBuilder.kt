@@ -1,6 +1,7 @@
 package com.gitub.oopgurus.refactoringproblems.mailserver
 
-import jakarta.mail.internet.InternetAddress
+import com.gitub.oopgurus.refactoringproblems.mailserver.exception.MailException
+import com.gitub.oopgurus.refactoringproblems.mailserver.exception.MailExceptionType.*
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeUtility
 import org.springframework.mail.javamail.JavaMailSender
@@ -9,15 +10,56 @@ import java.io.File
 
 class MimeMessageBuilder(
         private val javaMailSender: JavaMailSender,
-        private val from: EmailAddress,
-        private val to: EmailAddress,
-        private val emailSubject: EmailSubject,
-        private val emailBody: EmailBody,
 ) {
 
     private val mimeMessage = javaMailSender.createMimeMessage()
     private val mimeMessageHelper = MimeMessageHelper(mimeMessage, true, "UTF-8")
     var postfixTitle = ""
+
+    private var from: Result<String> = Result.failure(MailException(MAIL_IS_BLANK))
+    private var to: Result<String> = Result.failure(MailException(MAIL_IS_BLANK))
+    private var subject: Result<String> = Result.failure(MailException(MAIL_SUBJECT_IS_BLANK))
+    private var body: Result<String> = Result.failure(MailException(MAIL_BODY_IS_BLANK))
+
+    fun from(from: String): MimeMessageBuilder {
+        Regex(".+@.*\\..+").matches(from).let {
+            if (it.not()) {
+                this.from = Result.failure(MailException(INVALID_MAIL))
+            } else {
+                this.from = Result.success(from)
+            }
+        }
+        return this
+    }
+
+    fun to(to: String): MimeMessageBuilder {
+        Regex(".+@.*\\..+").matches(to).let {
+            if (it.not()) {
+                this.to = Result.failure(MailException(INVALID_MAIL))
+            } else {
+                this.to = Result.success(to)
+            }
+        }
+        return this
+    }
+
+    fun subject(subject: String): MimeMessageBuilder {
+        if (subject.isBlank()) {
+            this.subject = Result.failure(MailException(MAIL_SUBJECT_IS_BLANK))
+        } else {
+            this.subject = Result.success(subject)
+        }
+        return this
+    }
+
+    fun body(body: String): MimeMessageBuilder {
+        if (body.isBlank()) {
+            this.body = Result.failure(MailException(MAIL_BODY_IS_BLANK))
+        } else {
+            this.body = Result.success(body)
+        }
+        return this
+    }
 
     fun files(files: List<File>): MimeMessageBuilder {
         files.forEach {
@@ -39,14 +81,10 @@ class MimeMessageBuilder(
     }
 
     fun build(): MimeMessage {
-        val fromAddress = InternetAddress(from.address, from.name)
-        val toAddress = InternetAddress(to.address, to.name)
-        val subject = emailSubject.addPostfix(postfixTitle).subject
-
-        mimeMessageHelper.setFrom(fromAddress)
-        mimeMessageHelper.setTo(toAddress)
-        mimeMessageHelper.setSubject(MimeUtility.encodeText(subject, "UTF-8", "B")) // Base64 encoding
-        mimeMessageHelper.setText(emailBody.body, true)
+        mimeMessageHelper.setFrom(from.getOrThrow())
+        mimeMessageHelper.setTo(to.getOrThrow())
+        mimeMessageHelper.setSubject(MimeUtility.encodeText(subject.getOrThrow(), "UTF-8", "B")) // Base64 encoding
+        mimeMessageHelper.setText(body.getOrThrow(), true)
         return mimeMessage
     }
 }

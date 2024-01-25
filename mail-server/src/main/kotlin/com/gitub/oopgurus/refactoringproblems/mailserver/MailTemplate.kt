@@ -2,6 +2,9 @@ package com.gitub.oopgurus.refactoringproblems.mailserver
 
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Template
+import com.gitub.oopgurus.refactoringproblems.mailserver.exception.TemplateException
+import com.gitub.oopgurus.refactoringproblems.mailserver.exception.TemplateExceptionType
+import com.gitub.oopgurus.refactoringproblems.mailserver.exception.TemplateExceptionType.*
 import org.springframework.stereotype.Component
 
 @Component
@@ -10,11 +13,9 @@ class MailTemplate(
         private val handlebars: Handlebars
 ) {
 
-    fun createMailTemplate(createMailTemplateDtos: List<CreateMailTemplateDto>) {
+    fun createMailTemplate(createMailTemplateDtos: List<CreateMailTemplateDto>) : Result<Unit> {
         createMailTemplateDtos.forEach {
-            if (it.htmlBody.isBlank()) {
-                throw IllegalArgumentException("htmlBody is blank")
-            }
+            if (it.htmlBody.isBlank()) return Result.failure(TemplateException(HTML_BODY_IS_NULL))
             mailTemplateRepository.save(
                     MailTemplateEntity(
                             name = it.name,
@@ -22,14 +23,15 @@ class MailTemplate(
                     )
             )
         }
+        return Result.success(Unit)
     }
 
-    fun assembleHtmlMailTemplate(templateName: String, parameters: Map<String, Any>): String {
-        if (templateName.isBlank()) throw RuntimeException("템플릿 이름이 비어있습니다")
-
+    fun assembleHtmlMailTemplate(templateName: String, parameters: Map<String, Any>): Result<String> {
+        if (templateName.isBlank()) return Result.failure(TemplateException(TEMPLATE_NAME_IS_BLANK))
         val htmlTemplate = mailTemplateRepository.findByName(templateName)
-                ?: throw RuntimeException("템플릿이 존재하지 않습니다: [${templateName}]")
+                ?: return Result.failure(TemplateException(TEMPLATE_NOT_FOUND))
+
         val template: Template = handlebars.compileInline(htmlTemplate.htmlBody)
-        return template.apply(parameters)
+        return Result.success(template.apply(parameters))
     }
 }
