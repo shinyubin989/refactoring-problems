@@ -9,8 +9,11 @@ class FakeMailRepository : MailRepository {
     private val mails = mutableMapOf<Long, MailEntity>()
 
     override fun findByToAddressOrderByCreatedAt(recipient: String, pageable: Pageable): List<MailEntity> {
-        return mails.values.filter { it.toAddress == recipient }.sortedBy { it.createdAt }
-                .subList(pageable.offset.toInt(), pageable.offset.toInt() + pageable.pageSize)
+        val mails = mails.values.filter { it.toAddress == recipient }.sortedBy { it.createdAt }
+        if(pageable.pageSize > mails.size) {
+            return mails.subList(pageable.offset.toInt(), pageable.offset.toInt() + mails.size)
+        }
+        return mails.subList(pageable.offset.toInt(), pageable.offset.toInt() + pageable.pageSize)
     }
 
     override fun save(mailEntity: MailEntity): MailEntity {

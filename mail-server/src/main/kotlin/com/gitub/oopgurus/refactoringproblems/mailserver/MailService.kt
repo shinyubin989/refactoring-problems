@@ -44,7 +44,7 @@ class MailService(
         }
     }
 
-    fun save(sendMailDto: SendMailDto) = { status: MailSendStatus ->
+    private fun save(sendMailDto: SendMailDto) = { status: MailSendStatus ->
         val mail = mailRepository.save(
                 MailEntity(
                         fromAddress = sendMailDto.fromAddress,
