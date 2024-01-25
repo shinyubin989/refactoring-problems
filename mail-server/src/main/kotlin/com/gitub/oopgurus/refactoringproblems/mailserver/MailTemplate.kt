@@ -3,7 +3,6 @@ package com.gitub.oopgurus.refactoringproblems.mailserver
 import com.github.jknack.handlebars.Handlebars
 import com.github.jknack.handlebars.Template
 import com.gitub.oopgurus.refactoringproblems.mailserver.exception.TemplateException
-import com.gitub.oopgurus.refactoringproblems.mailserver.exception.TemplateExceptionType
 import com.gitub.oopgurus.refactoringproblems.mailserver.exception.TemplateExceptionType.*
 import org.springframework.stereotype.Component
 
@@ -13,7 +12,7 @@ class MailTemplate(
         private val handlebars: Handlebars
 ) {
 
-    fun createMailTemplate(createMailTemplateDtos: List<CreateMailTemplateDto>) : Result<Unit> {
+    fun create(createMailTemplateDtos: List<CreateMailTemplateDto>) : Result<Unit> {
         createMailTemplateDtos.forEach {
             if (it.htmlBody.isBlank()) return Result.failure(TemplateException(HTML_BODY_IS_NULL))
             mailTemplateRepository.save(
@@ -26,7 +25,7 @@ class MailTemplate(
         return Result.success(Unit)
     }
 
-    fun assembleHtmlMailTemplate(templateName: String, parameters: Map<String, Any>): Result<String> {
+    fun assemble(templateName: String, parameters: Map<String, Any>): Result<String> {
         if (templateName.isBlank()) return Result.failure(TemplateException(TEMPLATE_NAME_IS_BLANK))
         val htmlTemplate = mailTemplateRepository.findByName(templateName)
                 ?: return Result.failure(TemplateException(TEMPLATE_NOT_FOUND))

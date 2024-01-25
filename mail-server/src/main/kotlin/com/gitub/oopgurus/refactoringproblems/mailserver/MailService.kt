@@ -1,8 +1,6 @@
 package com.gitub.oopgurus.refactoringproblems.mailserver
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.gitub.oopgurus.refactoringproblems.mailserver.exception.MailExceptionType
-import com.gitub.oopgurus.refactoringproblems.mailserver.exception.MailException
 import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.stereotype.Component
 
@@ -23,7 +21,7 @@ class MailService(
 
     private fun sendSingle(sendMailDto: SendMailDto) {
 
-        val html = mailTemplate.assembleHtmlMailTemplate(sendMailDto.htmlTemplateName, sendMailDto.htmlTemplateParameters)
+        val html = mailTemplate.assemble(sendMailDto.htmlTemplateName, sendMailDto.htmlTemplateParameters)
                 .getOrThrow()
         val files = convertToFile(sendMailDto.fileAttachments)
 
