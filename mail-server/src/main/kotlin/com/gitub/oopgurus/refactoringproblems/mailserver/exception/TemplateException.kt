@@ -1,10 +1,10 @@
 package com.gitub.oopgurus.refactoringproblems.mailserver.exception
 
 class TemplateException(
-        private val templateExceptionType: TemplateExceptionType
+        private val exceptionType: TemplateExceptionType
 ) : ApplicationException() {
 
     override fun exceptionType(): ApplicationExceptionType {
-        return templateExceptionType
+        return exceptionType
     }
 }

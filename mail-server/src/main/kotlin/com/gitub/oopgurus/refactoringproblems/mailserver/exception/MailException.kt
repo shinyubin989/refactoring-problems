@@ -1,9 +1,9 @@
 package com.gitub.oopgurus.refactoringproblems.mailserver.exception
 
 class MailException(
-        private val mailExceptionType: MailExceptionType,
+        private val exceptionType: MailExceptionType,
 ) : ApplicationException() {
     override fun exceptionType(): ApplicationExceptionType {
-        return mailExceptionType
+        return exceptionType
     }
 }
